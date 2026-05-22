@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — RetailOS{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  /* ── Dashboard quick-action cards ── */
+  .quick-action-card {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px;
+    transition: border-color .15s;
+  }
+  .quick-action-card:hover { border-color: var(--accent); }
+  .quick-action-card.green:hover  { border-color: var(--green); }
+  .quick-action-card.orange:hover { border-color: var(--accent2); }
+
+  .quick-action-icon { font-size: 28px; }
+  .quick-action-title { font-weight: 600; margin-bottom: 3px; }
+  .quick-action-sub   { color: var(--muted); font-size: 12px; }
+
+  /* ── Top products table rank column ── */
+  .rank-cell {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--surface2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .rank-cell.top { background: rgba(115,54,24,.15); color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KPIs -->
+<div class="kpi-grid">
+  <div class="kpi-card accent">
+    <i class="fa fa-rupee-sign kpi-icon"></i>
+    <div class="kpi-label">Total Revenue</div>
+    <div class="kpi-value accent">₹{{ "{:,.0f}".format(kpis.total_revenue) }}</div>
+  </div>
+  <div class="kpi-card green">
+    <i class="fa fa-shopping-cart kpi-icon"></i>
+    <div class="kpi-label">Total Orders</div>
+    <div class="kpi-value green">{{ kpis.total_orders }}</div>
+  </div>
+  <div class="kpi-card red">
+    <i class="fa fa-exclamation-triangle kpi-icon"></i>
+    <div class="kpi-label">Low Stock Items</div>
+    <div class="kpi-value red">{{ kpis.low_stock_count }}</div>
+  </div>
+  <div class="kpi-card orange">
+    <i class="fa fa-clock kpi-icon"></i>
+    <div class="kpi-label">Pending Orders</div>
+    <div class="kpi-value orange">{{ kpis.pending_orders }}</div>
+  </div>
+</div>
+
+<!-- Charts row -->
+<div class="grid-2 mb-6">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Revenue by Channel</span>
+    </div>
+    <div class="chart-box"><canvas id="channelChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Revenue by Region</span>
+    </div>
+    <div class="chart-box"><canvas id="regionChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Top products -->
+<div class="card mb-6">
+  <div class="card-header">
+    <span class="card-title">Top Products by Revenue</span>
+    <a href="{{ url_for('analytics') }}" class="btn btn-outline btn-sm">
+      <i class="fa fa-chart-bar"></i> Full Analytics
+    </a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Product</th><th>SKU</th><th>Units Sold</th><th>Revenue</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in top_products %}
+        <tr>
+          <td class="text-muted mono">{{ loop.index }}</td>
+          <td>{{ p.name }}</td>
+          <td class="mono">{{ p.sku }}</td>
+          <td>{{ p.units }}</td>
+          <td class="mono text-accent">₹{{ "{:,.0f}".format(p.revenue) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div class="grid-3">
+  <a href="{{ url_for('inventory_add') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;padding:20px;transition:border-color .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+    <i class="fa fa-plus-circle text-accent" style="font-size:28px"></i>
+    <div>
+      <div style="font-weight:600;margin-bottom:3px">Add Product</div>
+      <div class="text-muted">Add new inventory item</div>
+    </div>
+  </a>
+  <a href="{{ url_for('orders_create', order_type='b2c') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;padding:20px;transition:border-color .15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+    <i class="fa fa-user text-green" style="font-size:28px"></i>
+    <div>
+      <div style="font-weight:600;margin-bottom:3px">New B2C Order</div>
+      <div class="text-muted">Place retail customer order</div>
+    </div>
+  </a>
+  <a href="{{ url_for('orders_create', order_type='b2b') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;padding:20px;transition:border-color .15s" onmouseover="this.style.borderColor='var(--accent2)'" onmouseout="this.style.borderColor='var(--border)'">
+    <i class="fa fa-building" style="font-size:28px;color:var(--accent2)"></i>
+    <div>
+      <div style="font-weight:600;margin-bottom:3px">New B2B Order</div>
+      <div class="text-muted">Place business bulk order</div>
+    </div>
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ACCENT  = '#733618';
+const GREEN   = '#733618b9';
+const ORANGE  = '#733618';
+const YELLOW  = '#73361884';
+const MUTED   = '#48210e';
+const GRID    = 'rgba(115,54,24,0.08)';
+
+Chart.defaults.color = MUTED;
+Chart.defaults.borderColor = GRID;
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+async function loadCharts() {
+  const [ch, rg] = await Promise.all([
+    fetch('/api/analytics/channels').then(r => r.json()),
+    fetch('/api/analytics/regions').then(r => r.json()),
+  ]);
+
+  new Chart(document.getElementById('channelChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ch.data.map(d => d.channel),
+      datasets: [{ data: ch.data.map(d => d.revenue),
+        backgroundColor: [ACCENT, 'rgba(115,54,24,0.45)'],
+        borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: { plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } } }, cutout: '68%' }
+  });
+
+  new Chart(document.getElementById('regionChart'), {
+    type: 'bar',
+    data: {
+      labels: rg.data.map(d => d.region_name),
+      datasets: [{ label: 'Revenue (₹)', data: rg.data.map(d => d.revenue),
+        backgroundColor: 'rgba(115,54,24,.18)', borderColor: ACCENT,
+        borderWidth: 1.5, borderRadius: 4 }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: { y: { grid: { color: GRID }, ticks: { callback: v => '₹' + (v/1000).toFixed(0) + 'K' } },
+                x: { grid: { display: false } } }
+    }
+  });
+}
+loadCharts();
+</script>
+{% endblock %}

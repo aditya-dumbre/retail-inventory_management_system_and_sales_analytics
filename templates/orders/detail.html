@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Order #{{ order.order_id }} — RetailOS{% endblock %}
+{% block page_title %}Order #{{ order.order_id }}{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Order detail page ── */
+  .order-meta-grid {
+    display: grid;
+    gap: 14px;
+  }
+  .order-meta-item {}
+  .order-meta-label {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .order-meta-value {
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  /* ── Status update card ── */
+  .status-update-current {
+    color: var(--muted);
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+  .status-display {
+    font-size: 14px;
+    padding: 6px 14px;
+  }
+
+  /* ── Notes block ── */
+  .order-notes {
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    margin-top: 4px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+  <a href="{{ url_for('orders_list') }}" class="btn btn-outline btn-sm"><i class="fa fa-arrow-left"></i> Back</a>
+  <span class="badge {% if order.order_type=='B2B' %}badge-orange{% elif order.order_type=='B2C' %}badge-accent{% else %}badge-green{% endif %}">
+    {{ order.order_type }}
+  </span>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Order Info</span></div>
+    <div style="display:grid;gap:14px">
+      {% for label, val in [
+        ('Order ID', '#' ~ order.order_id),
+        ('Product', order.product_name),
+        ('Quantity', order.quantity),
+        ('Unit Price', '₹' ~ "{:,.0f}".format(order.unit_price)),
+        ('Total Amount', '₹' ~ "{:,.0f}".format(order.total_amount)),
+        ('Region', order.region_name or '—'),
+        ('Customer Ref', order.customer_ref or '—'),
+        ('Order Date', order.order_date.strftime('%Y-%m-%d') if order.order_date else '—'),
+      ] %}
+      <div>
+        <div class="text-muted" style="font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">{{ label }}</div>
+        <div class="mono">{{ val }}</div>
+      </div>
+      {% endfor %}
+      {% if order.notes %}
+      <div>
+        <div class="text-muted" style="font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Notes</div>
+        <div>{{ order.notes }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Update Status</span></div>
+    <div class="mb-4">
+      <div class="text-muted" style="font-size:11px;margin-bottom:8px">Current Status</div>
+      <span class="status-pill status-{{ order.status }}" style="font-size:14px;padding:6px 14px">{{ order.status }}</span>
+    </div>
+    <hr class="separator" />
+    <form method="POST" action="{{ url_for('order_status', order_id=order.order_id) }}">
+      <div class="form-group mb-4">
+        <label>Change to</label>
+        <select name="status">
+          {% for s in ['pending','confirmed','shipped','delivered','cancelled'] %}
+          <option value="{{ s }}" {% if s == order.status %}selected{% endif %}>{{ s|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-accent"><i class="fa fa-refresh"></i> Update Status</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

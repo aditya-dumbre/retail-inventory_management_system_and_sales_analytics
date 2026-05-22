@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Inventory — RetailOS{% endblock %}
+{% block page_title %}Inventory{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Inventory list page ── */
+  .category-filter-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  /* ── Stock level cell ── */
+  .stock-value { font-family: var(--mono); }
+  .stock-low   { color: var(--red); }
+  .stock-ok    { color: var(--text); }
+
+  .low-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: rgba(115,54,24,.12);
+    color: var(--red);
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: 1px;
+  }
+
+  /* ── Row action group ── */
+  .row-actions { display: flex; gap: 6px; align-items: center; }
+
+  /* ── Product name column ── */
+  .product-name { font-weight: 600; font-size: 13px; }
+
+  /* ── Inventory header stats ── */
+  .inv-header-stats { color: var(--muted); font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+  <div>
+    <div class="text-muted">{{ products|length }} products across {{ categories|length }} categories</div>
+  </div>
+  <div class="flex gap-2">
+    <a href="{{ url_for('low_stock') }}" class="btn btn-outline btn-sm">
+      <i class="fa fa-exclamation-triangle"></i> Low Stock
+    </a>
+    <a href="{{ url_for('inventory_add') }}" class="btn btn-accent">
+      <i class="fa fa-plus"></i> Add Product
+    </a>
+  </div>
+</div>
+
+<!-- Category filter pills -->
+<div class="flex gap-2 mb-4" style="flex-wrap:wrap">
+  <button class="btn btn-sm btn-accent cat-filter" data-cat="all">All</button>
+  {% for cat in categories %}
+  <button class="btn btn-sm btn-outline cat-filter" data-cat="{{ cat }}">{{ cat }}</button>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th><th>SKU</th><th>Category</th>
+          <th>Stock</th><th>Unit Price</th><th>Reorder Lvl</th>
+          <th>Supplier</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr class="product-row" data-cat="{{ p.category }}">
+          <td><strong>{{ p.name }}</strong></td>
+          <td class="mono">{{ p.sku }}</td>
+          <td><span class="badge badge-gray">{{ p.category }}</span></td>
+          <td>
+            {% if p.quantity <= p.reorder_level %}
+              <span class="text-red mono">{{ p.quantity }}</span>
+              <span class="badge badge-red" style="margin-left:4px">LOW</span>
+            {% else %}
+              <span class="mono">{{ p.quantity }}</span>
+            {% endif %}
+          </td>
+          <td class="mono text-accent">₹{{ "{:,.0f}".format(p.unit_price) }}</td>
+          <td class="mono text-muted">{{ p.reorder_level }}</td>
+          <td class="text-muted">{{ p.supplier or '—' }}</td>
+          <td>
+            <div class="flex gap-2">
+              <a href="{{ url_for('inventory_detail', product_id=p.product_id) }}" class="btn btn-outline btn-sm">
+                <i class="fa fa-eye"></i>
+              </a>
+              <a href="{{ url_for('inventory_edit', product_id=p.product_id) }}" class="btn btn-outline btn-sm">
+                <i class="fa fa-edit"></i>
+              </a>
+              <form method="POST" action="{{ url_for('inventory_delete', product_id=p.product_id) }}" onsubmit="return confirm('Delete {{ p.name }}?')">
+                <button type="submit" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i></button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.cat-filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cat-filter').forEach(b => {
+      b.classList.remove('btn-accent'); b.classList.add('btn-outline');
+    });
+    btn.classList.add('btn-accent'); btn.classList.remove('btn-outline');
+    const cat = btn.dataset.cat;
+    document.querySelectorAll('.product-row').forEach(row => {
+      row.style.display = (cat === 'all' || row.dataset.cat === cat) ? '' : 'none';
+    });
+  });
+});
+</script>
+{% endblock %}

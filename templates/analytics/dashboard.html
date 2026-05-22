@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}Analytics — RetailOS{% endblock %}
+{% block page_title %}Sales Analytics{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  /* ── Analytics page ── */
+  .revenue-share-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .revenue-share-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  .revenue-share-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .revenue-share-pct {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* ── Channel / region breakdown tables ── */
+  .breakdown-table td:last-child,
+  .breakdown-table th:last-child { text-align: right; }
+
+  /* ── Top-products rank badge ── */
+  .rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    background: var(--surface2);
+    color: var(--muted);
+  }
+  .rank-badge.gold   { background: rgba(115,54,24,.18); color: var(--accent); }
+  .rank-badge.silver { background: rgba(115,54,24,.11); color: var(--muted); }
+  .rank-badge.bronze { background: rgba(115,54,24,.08); color: var(--yellow); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KPI row -->
+<div class="kpi-grid mb-6">
+  <div class="kpi-card accent">
+    <i class="fa fa-rupee-sign kpi-icon"></i>
+    <div class="kpi-label">Total Revenue</div>
+    <div class="kpi-value accent">₹{{ "{:,.0f}".format(kpis.total_revenue) }}</div>
+  </div>
+  <div class="kpi-card green">
+    <i class="fa fa-shopping-cart kpi-icon"></i>
+    <div class="kpi-label">Total Orders</div>
+    <div class="kpi-value green">{{ kpis.total_orders }}</div>
+  </div>
+  <div class="kpi-card red">
+    <i class="fa fa-exclamation-triangle kpi-icon"></i>
+    <div class="kpi-label">Low Stock</div>
+    <div class="kpi-value red">{{ kpis.low_stock_count }}</div>
+  </div>
+  <div class="kpi-card orange">
+    <i class="fa fa-clock kpi-icon"></i>
+    <div class="kpi-label">Pending Orders</div>
+    <div class="kpi-value orange">{{ kpis.pending_orders }}</div>
+  </div>
+</div>
+
+<!-- Charts row 1 -->
+<div class="grid-2 mb-6">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Monthly Revenue Trend</span></div>
+    <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Channel Split — B2B vs B2C</span></div>
+    <div class="chart-box"><canvas id="channelChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Charts row 2 -->
+<div class="grid-2 mb-6">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Revenue by Region</span></div>
+    <div class="chart-box"><canvas id="regionChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Top 5 Products</span></div>
+    <div class="chart-box"><canvas id="productsChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Tables row -->
+<div class="grid-2">
+  <!-- Channel table -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Channel Breakdown</span></div>
+    <table>
+      <thead><tr><th>Channel</th><th>Revenue</th><th>Orders</th></tr></thead>
+      <tbody>
+        {% for c in by_channel %}
+        <tr>
+          <td><span class="badge {% if c.channel=='B2B' %}badge-orange{% else %}badge-accent{% endif %}">{{ c.channel }}</span></td>
+          <td class="mono text-accent">₹{{ "{:,.0f}".format(c.revenue) }}</td>
+          <td class="mono">{{ c.orders }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Region table -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Region Breakdown</span></div>
+    <table>
+      <thead><tr><th>Region</th><th>Revenue</th><th>Units</th></tr></thead>
+      <tbody>
+        {% for r in by_region %}
+        <tr>
+          <td>{{ r.region_name }}</td>
+          <td class="mono text-accent">₹{{ "{:,.0f}".format(r.revenue) }}</td>
+          <td class="mono">{{ r.units }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Top products table -->
+<div class="card mt-4">
+  <div class="card-header"><span class="card-title">Top Products</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Product</th><th>SKU</th><th>Units Sold</th><th>Revenue</th><th>Revenue Share</th></tr></thead>
+      <tbody>
+        {% set total = top_products | sum(attribute='revenue') %}
+        {% for p in top_products %}
+        <tr>
+          <td class="mono text-muted">{{ loop.index }}</td>
+          <td><strong>{{ p.name }}</strong></td>
+          <td class="mono">{{ p.sku }}</td>
+          <td class="mono">{{ p.units }}</td>
+          <td class="mono text-accent">₹{{ "{:,.0f}".format(p.revenue) }}</td>
+          <td>
+            {% set pct = (p.revenue / total * 100) if total > 0 else 0 %}
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:4px;background:var(--border);border-radius:2px">
+                <div style="width:{{ pct|round(0) }}%;height:100%;background:var(--accent);border-radius:2px"></div>
+              </div>
+              <span class="mono text-muted" style="font-size:11px;min-width:36px">{{ pct|round(1) }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ACCENT = '#733618', GREEN = '#733618b9', ORANGE = '#733618',
+      YELLOW = '#73361884', MUTED = '#48210e', GRID = 'rgba(115,54,24,0.08)';
+Chart.defaults.color = MUTED;
+Chart.defaults.borderColor = GRID;
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+async function loadCharts() {
+  const [ch, rg, tp, mn] = await Promise.all([
+    fetch('/api/analytics/channels').then(r => r.json()),
+    fetch('/api/analytics/regions').then(r => r.json()),
+    fetch('/api/analytics/top-products').then(r => r.json()),
+    fetch('/api/analytics/monthly').then(r => r.json()),
+  ]);
+
+  new Chart(document.getElementById('monthlyChart'), {
+    type: 'line',
+    data: {
+      labels: mn.data.map(d => d.month || 'N/A'),
+      datasets: [{ label: 'Revenue', data: mn.data.map(d => d.revenue),
+        borderColor: ACCENT, backgroundColor: 'rgba(115,54,24,0.08)',
+        tension: 0.4, fill: true, pointBackgroundColor: ACCENT, pointRadius: 4 }]
+    },
+    options: { plugins: { legend: { display: false } },
+      scales: { y: { grid: { color: GRID }, ticks: { callback: v => '₹' + (v/1000).toFixed(0)+'K' }},
+                x: { grid: { display: false } } } }
+  });
+
+  new Chart(document.getElementById('channelChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ch.data.map(d => d.channel),
+      datasets: [{ data: ch.data.map(d => d.revenue),
+        backgroundColor: [ACCENT, 'rgba(115,54,24,0.45)'], borderWidth: 0, hoverOffset: 8 }]
+    },
+    options: { cutout: '65%', plugins: { legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } } } }
+  });
+
+  new Chart(document.getElementById('regionChart'), {
+    type: 'bar',
+    data: {
+      labels: rg.data.map(d => d.region_name),
+      datasets: [{ label: 'Revenue', data: rg.data.map(d => d.revenue),
+        backgroundColor: 'rgba(115,54,24,.15)', borderColor: ACCENT,
+        borderWidth: 1.5, borderRadius: 4 }]
+    },
+    options: { plugins: { legend: { display: false } }, indexAxis: 'y',
+      scales: { x: { grid: { color: GRID }, ticks: { callback: v => '₹'+(v/1000).toFixed(0)+'K' }},
+                y: { grid: { display: false } } } }
+  });
+
+  new Chart(document.getElementById('productsChart'), {
+    type: 'bar',
+    data: {
+      labels: tp.data.map(d => d.name.length > 14 ? d.name.slice(0,14)+'…' : d.name),
+      datasets: [{ label: 'Revenue', data: tp.data.map(d => d.revenue),
+        backgroundColor: ['rgba(115,54,24,.80)','rgba(115,54,24,.65)','rgba(115,54,24,.50)',
+                          'rgba(115,54,24,.35)','rgba(115,54,24,.20)'],
+        borderRadius: 4 }]
+    },
+    options: { plugins: { legend: { display: false } },
+      scales: { y: { grid: { color: GRID }, ticks: { callback: v => '₹'+(v/1000).toFixed(0)+'K' }},
+                x: { grid: { display: false } } } }
+  });
+}
+loadCharts();
+</script>
+{% endblock %}

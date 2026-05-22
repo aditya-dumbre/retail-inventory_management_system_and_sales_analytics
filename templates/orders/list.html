@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Orders — RetailOS{% endblock %}
+{% block page_title %}Orders{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Orders list page ── */
+  .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .order-actions-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Order ID link styling ── */
+  .order-id-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    transition: opacity .15s;
+  }
+  .order-id-link:hover { opacity: .7; }
+
+  /* ── Amount column ── */
+  .amount-cell {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  /* ── Date column ── */
+  .date-cell {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+  <!-- Type filter tabs -->
+ <div class="order-actions-bar">
+  
+  <!-- Filter Tabs -->
+  <div class="flex gap-2 filter-tabs">
+    <a href="{{ url_for('orders_list') }}" class="btn btn-sm {% if not order_type %}btn-accent{% else %}btn-outline{% endif %}">All</a>
+    <a href="{{ url_for('orders_list', type='B2B') }}" class="btn btn-sm {% if order_type=='B2B' %}btn-accent{% else %}btn-outline{% endif %}">B2B</a>
+    <a href="{{ url_for('orders_list', type='B2C') }}" class="btn btn-sm {% if order_type=='B2C' %}btn-accent{% else %}btn-outline{% endif %}">B2C</a>
+    <a href="{{ url_for('orders_list', type='RESTOCK') }}" class="btn btn-sm {% if order_type=='RESTOCK' %}btn-accent{% else %}btn-outline{% endif %}">Restock</a>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex gap-2">
+    <a href="{{ url_for('orders_create', order_type='b2c') }}" class="btn btn-outline btn-sm">
+      <i class="fa fa-user"></i> B2C
+    </a>
+    <a href="{{ url_for('orders_create', order_type='b2b') }}" class="btn btn-outline btn-sm">
+      <i class="fa fa-building"></i> B2B
+    </a>
+    <a href="{{ url_for('orders_create', order_type='restock') }}" class="btn btn-accent btn-sm">
+      <i class="fa fa-truck"></i> Restock
+    </a>
+  </div>
+
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Order ID</th><th>Type</th><th>Product</th><th>Qty</th>
+          <th>Amount</th><th>Region</th><th>Customer Ref</th>
+          <th>Status</th><th>Date</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td class="mono text-accent">#{{ o.order_id }}</td>
+          <td>
+            <span class="badge {% if o.order_type=='B2B' %}badge-orange{% elif o.order_type=='B2C' %}badge-accent{% else %}badge-green{% endif %}">
+              {{ o.order_type }}
+            </span>
+          </td>
+          <td>{{ o.product_name }}</td>
+          <td class="mono">{{ o.quantity }}</td>
+          <td class="mono text-accent">₹{{ "{:,.0f}".format(o.total_amount) }}</td>
+          <td class="text-muted">{{ o.region_name or '—' }}</td>
+          <td class="mono text-muted">{{ o.customer_ref or '—' }}</td>
+          <td>
+            <span class="status-pill status-{{ o.status }}">{{ o.status }}</span>
+          </td>
+          <td class="mono text-muted" style="font-size:11px">
+            {{ o.order_date.strftime('%Y-%m-%d') if o.order_date else '—' }}
+          </td>
+          <td>
+            <a href="{{ url_for('order_detail', order_id=o.order_id) }}" class="btn btn-outline btn-sm">
+              <i class="fa fa-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

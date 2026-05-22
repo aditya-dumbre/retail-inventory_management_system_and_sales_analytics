@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Low Stock — RetailOS{% endblock %}
+{% block page_title %}Low Stock Alert{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Low stock page ── */
+  .low-stock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .low-stock-count { color: var(--muted); font-size: 13px; }
+
+  /* ── Deficit cell ── */
+  .deficit-cell {
+    font-family: var(--mono);
+    color: var(--red);
+    font-size: 13px;
+  }
+
+  /* ── Current qty cell ── */
+  .qty-cell {
+    font-family: var(--mono);
+    color: var(--red);
+    font-weight: 700;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 56px 24px;
+  }
+  .empty-state-icon {
+    font-size: 48px;
+    color: var(--green);
+    display: block;
+    margin-bottom: 16px;
+  }
+  .empty-state-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .empty-state-sub { color: var(--muted); font-size: 13px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+  <div class="text-muted">{{ items|length }} item(s) at or below reorder level</div>
+  <a href="{{ url_for('orders_create', order_type='restock') }}" class="btn btn-accent">
+    <i class="fa fa-truck"></i> Create Restock Order
+  </a>
+</div>
+
+{% if items %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Product</th><th>SKU</th><th>Category</th><th>Current Qty</th><th>Reorder Level</th><th>Deficit</th><th>Supplier</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for p in items %}
+        <tr>
+          <td><strong>{{ p.name }}</strong></td>
+          <td class="mono">{{ p.sku }}</td>
+          <td><span class="badge badge-gray">{{ p.category }}</span></td>
+          <td><span class="mono text-red">{{ p.quantity }}</span></td>
+          <td class="mono text-muted">{{ p.reorder_level }}</td>
+          <td><span class="mono text-red">-{{ p.reorder_level - p.quantity }}</span></td>
+          <td class="text-muted">{{ p.supplier or '—' }}</td>
+          <td>
+            <a href="{{ url_for('inventory_edit', product_id=p.product_id) }}" class="btn btn-outline btn-sm">
+              <i class="fa fa-edit"></i> Update Stock
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:48px">
+  <i class="fa fa-check-circle text-green" style="font-size:48px;margin-bottom:16px;display:block"></i>
+  <div style="font-size:16px;margin-bottom:6px">All products are well-stocked!</div>
+  <div class="text-muted">No items are at or below their reorder levels.</div>
+</div>
+{% endif %}
+{% endblock %}

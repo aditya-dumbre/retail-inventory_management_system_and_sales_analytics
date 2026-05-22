@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} — RetailOS{% endblock %}
+{% block page_title %}Product Detail{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Product detail page ── */
+  .product-meta-grid { display: grid; gap: 14px; }
+  .product-meta-label {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .product-meta-value { font-family: var(--mono); font-size: 13px; }
+
+  /* ── Stock level display ── */
+  .stock-display {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stock-display.good { color: var(--green); }
+  .stock-display.low  { color: var(--red); }
+
+  /* ── Reorder warning banner ── */
+  .reorder-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: var(--mono);
+    background: rgba(115,54,24,.12);
+    color: var(--red);
+    letter-spacing: .5px;
+  }
+
+  /* ── Inventory value row ── */
+  .inv-value-display {
+    font-family: var(--mono);
+    font-size: 16px;
+    color: var(--accent);
+  }
+
+  /* ── Unit price display ── */
+  .unit-price-display {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+  <a href="{{ url_for('inventory_list') }}" class="btn btn-outline btn-sm"><i class="fa fa-arrow-left"></i> Back</a>
+  <div class="flex gap-2">
+    <a href="{{ url_for('inventory_edit', product_id=product.product_id) }}" class="btn btn-outline btn-sm"><i class="fa fa-edit"></i> Edit</a>
+    <form method="POST" action="{{ url_for('inventory_delete', product_id=product.product_id) }}" onsubmit="return confirm('Delete this product?')">
+      <button type="submit" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i> Delete</button>
+    </form>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Product Info</span></div>
+    <div style="display:grid;gap:14px">
+      {% for label, val in [
+        ('Name', product.name),
+        ('SKU', product.sku),
+        ('Category', product.category),
+        ('Supplier', product.supplier or '—'),
+        ('Created', product.created_at),
+      ] %}
+      <div>
+        <div class="text-muted" style="font-size:10px;margin-bottom:3px;letter-spacing:1px;text-transform:uppercase">{{ label }}</div>
+        <div class="mono" style="font-size:13px">{{ val }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Stock & Pricing</span></div>
+    <div style="display:grid;gap:14px">
+      <div>
+        <div class="text-muted" style="font-size:10px;margin-bottom:6px;letter-spacing:1px;text-transform:uppercase">Stock Level</div>
+        <div class="kpi-value {% if product.quantity <= product.reorder_level %}red{% else %}green{% endif %}">
+          {{ product.quantity }}
+        </div>
+        {% if product.quantity <= product.reorder_level %}
+        <span class="badge badge-red" style="margin-top:6px">⚠ BELOW REORDER LEVEL ({{ product.reorder_level }})</span>
+        {% endif %}
+      </div>
+      <div>
+        <div class="text-muted" style="font-size:10px;margin-bottom:4px;letter-spacing:1px;text-transform:uppercase">Unit Price</div>
+        <div class="kpi-value accent" style="font-size:22px">₹{{ "{:,.0f}".format(product.unit_price) }}</div>
+      </div>
+      <div>
+        <div class="text-muted" style="font-size:10px;margin-bottom:4px;letter-spacing:1px;text-transform:uppercase">Inventory Value</div>
+        <div class="mono text-accent" style="font-size:16px">₹{{ "{:,.0f}".format(product.quantity * product.unit_price) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

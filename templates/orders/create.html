@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}New {{ order_type }} Order — RetailOS{% endblock %}
+{% block page_title %}New {{ order_type }} Order{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Order create page ── */
+  .order-form-wrap { max-width: 680px; }
+
+  /* ── Info banner variants ── */
+  .info-banner {
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+  }
+  .info-banner.b2b     { background: rgba(115,54,24,.08); border: 1px solid rgba(115,54,24,.22); color: var(--green); }
+  .info-banner.b2c     { background: rgba(115,54,24,.06); border: 1px solid rgba(115,54,24,.18); color: var(--accent); }
+  .info-banner.restock { background: rgba(115,54,24,.08); border: 1px solid rgba(115,54,24,.22); color: var(--green); }
+
+  /* ── Estimated total box ── */
+  .total-preview {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .total-preview-label { color: var(--muted); font-size: 13px; }
+  .total-preview-note  { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .total-preview-value {
+    font-family: var(--mono);
+    font-size: 20px;
+    color: var(--accent);
+  }
+
+  /* ── Stock indicator inside select ── */
+  .stock-ok  { color: var(--green); }
+  .stock-low { color: var(--red); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:680px">
+  <div class="flex justify-between items-center mb-6">
+    <a href="{{ url_for('orders_list') }}" class="btn btn-outline btn-sm"><i class="fa fa-arrow-left"></i> Back</a>
+    <span class="badge {% if order_type=='B2B' %}badge-orange{% elif order_type=='B2C' %}badge-accent{% else %}badge-green{% endif %}">
+      {{ order_type }}
+    </span>
+  </div>
+
+  {% if order_type == 'B2B' %}
+  <div class="alert alert-success" style="margin-bottom:16px">
+    <i class="fa fa-info-circle"></i>
+    B2B orders require minimum <strong>10 units</strong> and receive an automatic <strong>5% bulk discount</strong>.
+  </div>
+  {% elif order_type == 'B2C' %}
+  <div class="alert" style="background:rgba(115,54,24,.08);border:1px solid rgba(115,54,24,.20);color:var(--accent);margin-bottom:16px">
+    <i class="fa fa-info-circle"></i>
+    B2C orders are limited to a maximum of <strong>50 units</strong> per order.
+  </div>
+  {% else %}
+  <div class="alert alert-success" style="margin-bottom:16px">
+    <i class="fa fa-truck"></i>
+    Restock orders will immediately add the specified quantity to inventory.
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Order Details</span></div>
+    <form method="POST">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Product *</label>
+          <select name="product_id" required id="productSel">
+            <option value="">Select a product</option>
+            {% for p in products %}
+            <option value="{{ p.product_id }}" data-price="{{ p.unit_price }}" data-stock="{{ p.quantity }}">
+              {{ p.name }} ({{ p.sku }}) — Stock: {{ p.quantity }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantity *</label>
+          <input name="quantity" type="number" min="1" required placeholder="0" id="qtyInput" />
+        </div>
+        <div class="form-group">
+          <label>Unit Price (₹) *</label>
+          <input name="unit_price" type="number" step="0.01" min="0" required placeholder="0.00" id="priceInput" />
+        </div>
+        <div class="form-group">
+          <label>Region</label>
+          <select name="region_id">
+            <option value="">No specific region</option>
+            {% for r in regions %}
+            <option value="{{ r.region_id }}">{{ r.region_name }} ({{ r.country }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Customer / Supplier Reference</label>
+          <input name="customer_ref" placeholder="e.g. CUST-001 or SUP-WM-001" />
+        </div>
+        <div class="form-group full">
+          <label>Notes</label>
+          <textarea name="notes" rows="3" placeholder="Optional order notes"></textarea>
+        </div>
+      </div>
+
+      <div class="card" style="background:var(--surface2);margin-top:16px;padding:14px">
+        <div class="flex justify-between items-center">
+          <span class="text-muted">Estimated Total</span>
+          <span class="mono text-accent" style="font-size:18px" id="totalDisplay">₹0</span>
+        </div>
+        {% if order_type == 'B2B' %}
+        <div class="text-muted" style="font-size:11px;margin-top:4px">* 5% bulk discount applied automatically</div>
+        {% endif %}
+      </div>
+
+      <hr class="separator" />
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-accent"><i class="fa fa-check"></i> Place Order</button>
+        <a href="{{ url_for('orders_list') }}" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const sel = document.getElementById('productSel');
+const qty = document.getElementById('qtyInput');
+const price = document.getElementById('priceInput');
+const total = document.getElementById('totalDisplay');
+const IS_B2B = "{{ order_type }}" === "B2B";
+
+function updateTotal() {
+  const q = parseFloat(qty.value) || 0;
+  const p = parseFloat(price.value) || 0;
+  let t = q * p;
+  if (IS_B2B) t *= 0.95;
+  total.textContent = '₹' + t.toLocaleString('en-IN', {maximumFractionDigits:2});
+}
+
+sel.addEventListener('change', () => {
+  const opt = sel.selectedOptions[0];
+  if (opt && opt.dataset.price) {
+    price.value = opt.dataset.price;
+    updateTotal();
+  }
+});
+qty.addEventListener('input', updateTotal);
+price.addEventListener('input', updateTotal);
+</script>
+{% endblock %}

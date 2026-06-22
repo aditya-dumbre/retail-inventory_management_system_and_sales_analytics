@@ -9,7 +9,6 @@ A lightweight, demo-grade Flask retail management app: inventory, B2B/B2C orders
 --
 
 ## Table of Contents
-- [Demo & Screenshots](#demo--screenshots)
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
@@ -17,15 +16,6 @@ A lightweight, demo-grade Flask retail management app: inventory, B2B/B2C orders
 - [Seeded Accounts](#seeded-accounts)
 - [Contributing](#contributing)
 - [License & Notes](#license--notes)
-
-
-## Demo & Screenshots
-
-Add a short demo GIF or screenshot here to make the repo visually engaging. Example (place the file under `assets/` and reference it):
-
-![Demo GIF](assets/demo.gif)
-
-Tip: record a 10–20s screencast showing login, inventory list, and analytics and commit it to `assets/demo.gif`.
 
 
 ## Features
